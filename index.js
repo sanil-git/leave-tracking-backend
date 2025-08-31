@@ -401,16 +401,14 @@ app.put('/leave-balances/:leaveType', authenticateToken, async (req, res) => {
       const globalBalance = await LeaveBalance.findOne({ user: { $exists: false }, leaveType });
       
       if (globalBalance) {
-        // Create a user-specific copy of the global balance
-        updatedBalance = new LeaveBalance({
-          user: req.user.userId,
-          leaveType: globalBalance.leaveType,
-          balance: balance,
-          description: globalBalance.description
-        });
-        await updatedBalance.save();
+        // Update the global balance instead of creating a duplicate
+        updatedBalance = await LeaveBalance.findOneAndUpdate(
+          { user: { $exists: false }, leaveType },
+          { balance },
+          { new: true, runValidators: true }
+        );
       } else {
-        // Create a new user-specific balance
+        // Create a new user-specific balance only if no global exists
         updatedBalance = new LeaveBalance({
           user: req.user.userId,
           leaveType,
