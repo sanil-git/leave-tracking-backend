@@ -64,17 +64,26 @@ app.use(express.json());
 let cachedDb = null;
 
 const connectToDatabase = async () => {
-  if (cachedDb) {
-    return cachedDb;
-  }
-
   try {
+    // If we already have a connection and it's ready, use it
+    if (cachedDb && mongoose.connection.readyState === 1) {
+      return cachedDb;
+    }
+
+    // Close existing connection if it exists but isn't ready
+    if (cachedDb) {
+      await mongoose.disconnect();
+      cachedDb = null;
+    }
+
+    // Create new connection with very short timeouts for serverless
     const connection = await mongoose.connect(process.env.MONGO_URI, {
       maxPoolSize: 1, // Limit connections for serverless
-      serverSelectionTimeoutMS: 10000, // 10 second timeout
-      socketTimeoutMS: 45000, // 45 second timeout
-      bufferCommands: true, // Re-enable buffering for compatibility
+      serverSelectionTimeoutMS: 2000, // 2 second timeout for serverless
+      socketTimeoutMS: 10000, // 10 second timeout
+      bufferCommands: true, // Enable buffering for compatibility
       bufferMaxEntries: 100, // Allow some buffering
+      connectTimeoutMS: 2000, // 2 second connection timeout
     });
     
     cachedDb = connection;
@@ -86,6 +95,27 @@ const connectToDatabase = async () => {
   }
 };
 
+// Ensure database connection for each request with timeout
+const ensureConnection = async () => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      return true;
+    }
+
+    // Try to connect with a timeout
+    const connectionPromise = connectToDatabase();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout')), 3000)
+    );
+
+    await Promise.race([connectionPromise, timeoutPromise]);
+    return true;
+  } catch (error) {
+    console.error('Failed to ensure database connection:', error);
+    return false;
+  }
+};
+
 // Initialize database connection and wait for it to be ready
 const initializeDatabase = async () => {
   try {
@@ -93,19 +123,6 @@ const initializeDatabase = async () => {
     console.log('MongoDB connection is ready!');
   } catch (error) {
     console.error('Failed to initialize database:', error);
-  }
-};
-
-// Ensure database connection for each request
-const ensureConnection = async () => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      await connectToDatabase();
-    }
-    return true;
-  } catch (error) {
-    console.error('Failed to ensure database connection:', error);
-    return false;
   }
 };
 
