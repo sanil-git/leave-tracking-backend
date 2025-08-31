@@ -96,6 +96,19 @@ const initializeDatabase = async () => {
   }
 };
 
+// Ensure database connection for each request
+const ensureConnection = async () => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectToDatabase();
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to ensure database connection:', error);
+    return false;
+  }
+};
+
 // Start database initialization
 initializeDatabase();
 
@@ -498,13 +511,15 @@ app.get('/', (req, res) => {
 // Health check endpoint to test database connection
 app.get('/health', async (req, res) => {
   try {
-    // Check if connection is ready
-    if (mongoose.connection.readyState !== 1) {
+    // Ensure we have a connection
+    const isConnected = await ensureConnection();
+    
+    if (!isConnected) {
       return res.status(503).json({ 
         status: 'unhealthy', 
-        database: 'connecting',
+        database: 'connection_failed',
         readyState: mongoose.connection.readyState,
-        message: 'Database connection not ready yet',
+        message: 'Failed to establish database connection',
         timestamp: new Date().toISOString()
       });
     }
@@ -515,6 +530,7 @@ app.get('/health', async (req, res) => {
       status: 'healthy', 
       database: 'connected',
       readyState: mongoose.connection.readyState,
+      message: 'Database connection is working',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
