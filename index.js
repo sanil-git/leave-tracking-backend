@@ -45,14 +45,16 @@ const holidaysDeletedCounter = new client.Counter({
   help: 'Total number of holidays deleted'
 });
 
-// Updated CORS for production - allow Vercel frontend
+// Updated CORS for production - allow Vercel frontend and all subdomains
 app.use(cors({
   origin: [
     'http://localhost:3000', 
     'http://localhost:3001', 
     'http://localhost:3002',
     'https://leave-tracking-frontend.vercel.app',
-    'https://leave-tracking-frontend-git-main-sanil-git.vercel.app'
+    'https://leave-tracking-frontend-git-main-sanil-git.vercel.app',
+    'https://leave-tracking-frontend-ejjjaqums-sanil-manaktalas-projects.vercel.app',
+    /^https:\/\/leave-tracking-frontend.*\.vercel\.app$/ // Allow all Vercel subdomains
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
