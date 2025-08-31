@@ -644,10 +644,9 @@ app.get('/test-connection', async (req, res) => {
 // For Vercel deployment, export the app
 module.exports = app;
 
-// Only start server if running locally (not on Vercel)
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 8000;
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-} 
+// Start server for Render deployment
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Server accessible at http://0.0.0.0:${PORT}`);
+}); 
