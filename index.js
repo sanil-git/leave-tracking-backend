@@ -197,7 +197,6 @@ app.get('/vacations', authenticateToken, async (req, res) => {
     if (vacations.length === 0) {
       vacations = await Vacation.find({ user: { $exists: false } }).sort({ fromDate: 1 });
     }
-    
     res.json(vacations);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -230,7 +229,6 @@ app.post('/vacations', authenticateToken, async (req, res) => {
         days 
       });
     }
-    
     await vacation.save();
     res.status(201).json(vacation);
   } catch (err) {
@@ -272,6 +270,7 @@ app.delete('/vacations/:id', authenticateToken, async (req, res) => {
 // Get all leave balances for the authenticated user
 app.get('/leave-balances', authenticateToken, async (req, res) => {
   try {
+<<<<<<< HEAD
     // First try to find user-specific leave balances
     let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
     
@@ -305,6 +304,28 @@ app.get('/leave-balances', authenticateToken, async (req, res) => {
     res.json(leaveBalances);
   } catch (err) {
     console.error('Error in GET /leave-balances:', err);
+=======
+    let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
+    
+    // If no leave balances exist, create default ones for this user
+    if (leaveBalances.length === 0) {
+      const defaultBalances = [
+        { user: req.user.userId, leaveType: 'EL', balance: 15, description: 'Earned Leave' },
+        { user: req.user.userId, leaveType: 'SL', balance: 7, description: 'Sick Leave' },
+        { user: req.user.userId, leaveType: 'CL', balance: 3, description: 'Casual Leave' }
+      ];
+      
+      for (const balance of defaultBalances) {
+        const newBalance = new LeaveBalance(balance);
+        await newBalance.save();
+      }
+      
+      leaveBalances = await LeaveBalance.find({ user: req.user.userId });
+    }
+    
+    res.json(leaveBalances);
+  } catch (err) {
+>>>>>>> 71efb41ef4b12863e379382ab3336578a2548197
     res.status(500).json({ error: err.message });
   }
 });
@@ -319,6 +340,7 @@ app.put('/leave-balances/:leaveType', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Leave balance cannot be negative' });
     }
     
+<<<<<<< HEAD
     // First try to update existing global document (without user field)
     let updatedBalance = await LeaveBalance.findOneAndUpdate(
       { user: { $exists: false }, leaveType },
@@ -335,6 +357,14 @@ app.put('/leave-balances/:leaveType', authenticateToken, async (req, res) => {
       );
     }
     
+=======
+    const updatedBalance = await LeaveBalance.findOneAndUpdate(
+      { user: req.user.userId, leaveType },
+      { balance },
+      { new: true, upsert: true, runValidators: true }
+    );
+    
+>>>>>>> 71efb41ef4b12863e379382ab3336578a2548197
     res.json(updatedBalance);
   } catch (err) {
     res.status(400).json({ error: err.message });
