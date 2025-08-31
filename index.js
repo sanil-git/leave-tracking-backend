@@ -60,13 +60,34 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Connect to MongoDB Atlas with better error handling
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB Atlas!'))
-  .catch(err => {
+// Connect to MongoDB Atlas with better error handling for serverless functions
+let cachedDb = null;
+
+const connectToDatabase = async () => {
+  if (cachedDb) {
+    return cachedDb;
+  }
+
+  try {
+    const connection = await mongoose.connect(process.env.MONGO_URI, {
+      maxPoolSize: 1, // Limit connections for serverless
+      serverSelectionTimeoutMS: 5000, // 5 second timeout
+      socketTimeoutMS: 45000, // 45 second timeout
+      bufferCommands: false, // Disable mongoose buffering
+      bufferMaxEntries: 0, // Disable mongoose buffering
+    });
+    
+    cachedDb = connection;
+    console.log('Connected to MongoDB Atlas!');
+    return connection;
+  } catch (err) {
     console.error('MongoDB connection error:', err);
-    // Don't crash the app, just log the error
-  });
+    throw err;
+  }
+};
+
+// Initialize database connection
+connectToDatabase().catch(console.error);
 
 // Get all holidays
 app.get('/holidays', async (req, res) => {
@@ -449,6 +470,26 @@ app.get('/auth/profile', authenticateToken, async (req, res) => {
 
 app.get('/', (req, res) => {
   res.send('Backend is working!');
+});
+
+// Health check endpoint to test database connection
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await mongoose.connection.db.admin().ping();
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // For Vercel deployment, export the app
