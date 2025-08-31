@@ -82,7 +82,6 @@ const connectToDatabase = async () => {
       serverSelectionTimeoutMS: 2000, // 2 second timeout for serverless
       socketTimeoutMS: 10000, // 10 second timeout
       bufferCommands: true, // Enable buffering for compatibility
-      bufferMaxEntries: 100, // Allow some buffering
       connectTimeoutMS: 2000, // 2 second connection timeout
     });
     
@@ -110,7 +109,6 @@ const ensureConnection = async () => {
       socketTimeoutMS: 8000, // 8 seconds max
       connectTimeoutMS: 3000, // 3 seconds max
       bufferCommands: false, // Disable buffering for immediate feedback
-      bufferMaxEntries: 0,
     });
 
     // Race against a 4-second timeout
