@@ -389,14 +389,41 @@ app.put('/leave-balances/:leaveType', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Leave balance cannot be negative' });
     }
     
-    const updatedBalance = await LeaveBalance.findOneAndUpdate(
+    // First try to find and update existing user-specific balance
+    let updatedBalance = await LeaveBalance.findOneAndUpdate(
       { user: req.user.userId, leaveType },
       { balance },
-      { new: true, upsert: true, runValidators: true }
+      { new: true, runValidators: true }
     );
+    
+    // If no user-specific balance exists, check for global balance
+    if (!updatedBalance) {
+      const globalBalance = await LeaveBalance.findOne({ user: { $exists: false }, leaveType });
+      
+      if (globalBalance) {
+        // Create a user-specific copy of the global balance
+        updatedBalance = new LeaveBalance({
+          user: req.user.userId,
+          leaveType: globalBalance.leaveType,
+          balance: balance,
+          description: globalBalance.description
+        });
+        await updatedBalance.save();
+      } else {
+        // Create a new user-specific balance
+        updatedBalance = new LeaveBalance({
+          user: req.user.userId,
+          leaveType,
+          balance,
+          description: `${leaveType} Leave`
+        });
+        await updatedBalance.save();
+      }
+    }
     
     res.json(updatedBalance);
   } catch (err) {
+    console.error('Update leave balance error:', err);
     res.status(400).json({ error: err.message });
   }
 });
