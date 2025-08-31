@@ -561,6 +561,57 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Detailed connection test endpoint
+app.get('/test-connection', async (req, res) => {
+  try {
+    const startTime = Date.now();
+    
+    // Test 1: Check if we can reach the MongoDB URI
+    const mongoUri = process.env.MONGO_URI;
+    const hasMongoUri = !!mongoUri;
+    
+    // Test 2: Try to connect with detailed logging
+    let connectionResult = 'not_attempted';
+    let connectionError = null;
+    let connectionTime = 0;
+    
+    try {
+      const connectStart = Date.now();
+      await mongoose.connect(mongoUri, {
+        maxPoolSize: 1,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 10000,
+        connectTimeoutMS: 5000,
+      });
+      connectionTime = Date.now() - connectStart;
+      connectionResult = 'success';
+    } catch (err) {
+      connectionError = err.message;
+      connectionResult = 'failed';
+    }
+    
+    const totalTime = Date.now() - startTime;
+    
+    res.json({
+      status: 'connection_test',
+      mongoUri: hasMongoUri ? 'present' : 'missing',
+      connectionResult,
+      connectionTime: `${connectionTime}ms`,
+      totalTime: `${totalTime}ms`,
+      error: connectionError,
+      readyState: mongoose.connection.readyState,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      status: 'test_failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // For Vercel deployment, export the app
 module.exports = app;
 
