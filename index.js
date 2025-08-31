@@ -363,26 +363,18 @@ app.delete('/vacations/:id', authenticateToken, async (req, res) => {
 // Get all leave balances for the authenticated user
 app.get('/leave-balances', authenticateToken, async (req, res) => {
   try {
+    // First try to find user-specific leave balances
     let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
     
-    // If no leave balances exist, create default ones for this user
+    // If no user-specific balances exist, check for global balances (without user field)
     if (leaveBalances.length === 0) {
-      const defaultBalances = [
-        { user: req.user.userId, leaveType: 'EL', balance: 15, description: 'Earned Leave' },
-        { user: req.user.userId, leaveType: 'SL', balance: 7, description: 'Sick Leave' },
-        { user: req.user.userId, leaveType: 'CL', balance: 3, description: 'Casual Leave' }
-      ];
-      
-      for (const balance of defaultBalances) {
-        const newBalance = new LeaveBalance(balance);
-        await newBalance.save();
-      }
-      
-      leaveBalances = await LeaveBalance.find({ user: req.user.userId });
+      const globalBalances = await LeaveBalance.find({ user: { $exists: false } });
+      leaveBalances = globalBalances;
     }
     
     res.json(leaveBalances);
   } catch (err) {
+    console.error('Leave balances error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -409,25 +401,14 @@ app.put('/leave-balances/:leaveType', authenticateToken, async (req, res) => {
   }
 });
 
-// Reset leave balances to default values for the authenticated user
+// Reset leave balances for the authenticated user
 app.post('/leave-balances/reset', authenticateToken, async (req, res) => {
   try {
-    const defaultBalances = [
-      { user: req.user.userId, leaveType: 'EL', balance: 15, description: 'Earned Leave' },
-      { user: req.user.userId, leaveType: 'SL', balance: 7, description: 'Sick Leave' },
-      { user: req.user.userId, leaveType: 'CL', balance: 3, description: 'Casual Leave' }
-    ];
+    // Delete user-specific leave balances
+    await LeaveBalance.deleteMany({ user: req.user.userId });
     
-    for (const balance of defaultBalances) {
-      await LeaveBalance.findOneAndUpdate(
-        { user: req.user.userId, leaveType: balance.leaveType },
-        balance,
-        { upsert: true, runValidators: true }
-      );
-    }
-    
-    const updatedBalances = await LeaveBalance.find({ user: req.user.userId });
-    res.json(updatedBalances);
+    // Return empty array since no defaults are created
+    res.json([]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
