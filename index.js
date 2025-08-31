@@ -11,7 +11,7 @@ const Team = require('./Team');
 const LeaveBalance = require('./LeaveBalance');
 const User = require('./User');
 const app = express();
-const PORT = process.env.PORT || 5050;
+// Remove PORT for Vercel serverless functions
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const client = require('prom-client');
 const collectDefaultMetrics = client.collectDefaultMetrics;
@@ -45,18 +45,28 @@ const holidaysDeletedCounter = new client.Counter({
   help: 'Total number of holidays deleted'
 });
 
+// Updated CORS for production - allow Vercel frontend
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001', 
+    'http://localhost:3002',
+    'https://leave-tracking-frontend.vercel.app',
+    'https://leave-tracking-frontend-git-main-sanil-git.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
-// Connect to MongoDB Atlas
+// Connect to MongoDB Atlas with better error handling
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB Atlas!'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    // Don't crash the app, just log the error
+  });
 
 // Get all holidays
 app.get('/holidays', async (req, res) => {
@@ -270,41 +280,6 @@ app.delete('/vacations/:id', authenticateToken, async (req, res) => {
 // Get all leave balances for the authenticated user
 app.get('/leave-balances', authenticateToken, async (req, res) => {
   try {
-<<<<<<< HEAD
-    // First try to find user-specific leave balances
-    let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
-    
-    // If no user-specific balances exist, check for global balances (without user field)
-    if (leaveBalances.length === 0) {
-      leaveBalances = await LeaveBalance.find({ user: { $exists: false } });
-      
-          // If global balances exist, return them (don't create duplicates)
-    if (leaveBalances.length > 0) {
-      console.log('Found global leave balances, returning them');
-      console.log('Global balances found:', leaveBalances);
-    } else {
-        // Only create default ones if absolutely no balances exist anywhere
-        console.log('No leave balances found anywhere, creating defaults');
-        const defaultBalances = [
-          { user: req.user.userId, leaveType: 'EL', balance: 15, description: 'Earned Leave' },
-          { user: req.user.userId, leaveType: 'SL', balance: 7, description: 'Sick Leave' },
-          { user: req.user.userId, leaveType: 'CL', balance: 3, description: 'Casual Leave' }
-        ];
-        
-        for (const balance of defaultBalances) {
-          const newBalance = new LeaveBalance(balance);
-          await newBalance.save();
-        }
-        
-        leaveBalances = await LeaveBalance.find({ user: req.user.userId });
-      }
-    }
-    
-    console.log('About to send response with leaveBalances:', leaveBalances);
-    res.json(leaveBalances);
-  } catch (err) {
-    console.error('Error in GET /leave-balances:', err);
-=======
     let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
     
     // If no leave balances exist, create default ones for this user
@@ -325,7 +300,6 @@ app.get('/leave-balances', authenticateToken, async (req, res) => {
     
     res.json(leaveBalances);
   } catch (err) {
->>>>>>> 71efb41ef4b12863e379382ab3336578a2548197
     res.status(500).json({ error: err.message });
   }
 });
@@ -340,31 +314,12 @@ app.put('/leave-balances/:leaveType', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Leave balance cannot be negative' });
     }
     
-<<<<<<< HEAD
-    // First try to update existing global document (without user field)
-    let updatedBalance = await LeaveBalance.findOneAndUpdate(
-      { user: { $exists: false }, leaveType },
-      { balance },
-      { new: true, runValidators: true }
-    );
-    
-    // If no global document exists, create a new one with user ID
-    if (!updatedBalance) {
-      updatedBalance = await LeaveBalance.findOneAndUpdate(
-        { user: req.user.userId, leaveType },
-        { balance, description: leaveType === 'EL' ? 'Earned Leave' : leaveType === 'SL' ? 'Sick Leave' : 'Casual Leave' },
-        { new: true, upsert: true, runValidators: true }
-      );
-    }
-    
-=======
     const updatedBalance = await LeaveBalance.findOneAndUpdate(
       { user: req.user.userId, leaveType },
       { balance },
       { new: true, upsert: true, runValidators: true }
     );
     
->>>>>>> 71efb41ef4b12863e379382ab3336578a2548197
     res.json(updatedBalance);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -499,8 +454,9 @@ app.get('/', (req, res) => {
 // For Vercel deployment, export the app
 module.exports = app;
 
-// Only start server if running locally
+// Only start server if running locally (not on Vercel)
 if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 8000;
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
