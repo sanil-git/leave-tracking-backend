@@ -435,6 +435,9 @@ app.get('/metrics', async (req, res) => {
 // User Registration
 app.post('/auth/register', async (req, res) => {
   try {
+    // Ensure database connection is ready
+    await ensureConnection();
+    
     const { name, email, password } = req.body;
     
     // Check if user already exists
@@ -472,6 +475,9 @@ app.post('/auth/register', async (req, res) => {
 // User Login
 app.post('/auth/login', async (req, res) => {
   try {
+    // Ensure database connection is ready
+    await ensureConnection();
+    
     const { email, password } = req.body;
     
     // Find user by email
@@ -511,6 +517,9 @@ app.post('/auth/login', async (req, res) => {
 // Get current user profile
 app.get('/auth/profile', authenticateToken, async (req, res) => {
   try {
+    // Ensure database connection is ready
+    await ensureConnection();
+    
     const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
