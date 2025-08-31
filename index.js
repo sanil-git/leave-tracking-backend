@@ -441,6 +441,25 @@ app.post('/leave-balances/reset', authenticateToken, async (req, res) => {
   }
 });
 
+// Debug endpoint to see all leave balances in database
+app.get('/debug/leave-balances', async (req, res) => {
+  try {
+    const allBalances = await LeaveBalance.find({});
+    res.json({
+      total: allBalances.length,
+      balances: allBalances.map(b => ({
+        id: b._id,
+        leaveType: b.leaveType,
+        user: b.user || 'global',
+        balance: b.balance,
+        description: b.description
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Expose Prometheus metrics
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', client.register.contentType);
