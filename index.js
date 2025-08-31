@@ -86,16 +86,30 @@ const connectToDatabase = async () => {
   }
 };
 
-// Initialize database connection
-connectToDatabase().catch(console.error);
+// Initialize database connection and wait for it to be ready
+const initializeDatabase = async () => {
+  try {
+    await connectToDatabase();
+    console.log('MongoDB connection is ready!');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+  }
+};
+
+// Start database initialization
+initializeDatabase();
 
 // Wait for connection to be ready before handling requests
 mongoose.connection.once('open', () => {
-  console.log('MongoDB connection is ready!');
+  console.log('MongoDB connection is open and ready!');
 });
 
 mongoose.connection.on('error', (err) => {
   console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB connection disconnected');
 });
 
 // Get all holidays
@@ -484,17 +498,30 @@ app.get('/', (req, res) => {
 // Health check endpoint to test database connection
 app.get('/health', async (req, res) => {
   try {
+    // Check if connection is ready
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        status: 'unhealthy', 
+        database: 'connecting',
+        readyState: mongoose.connection.readyState,
+        message: 'Database connection not ready yet',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Test database connection
     await mongoose.connection.db.admin().ping();
     res.json({ 
       status: 'healthy', 
       database: 'connected',
+      readyState: mongoose.connection.readyState,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     res.status(500).json({ 
       status: 'unhealthy', 
-      database: 'disconnected',
+      database: 'error',
+      readyState: mongoose.connection.readyState,
       error: error.message,
       timestamp: new Date().toISOString()
     });
