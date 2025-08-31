@@ -71,10 +71,10 @@ const connectToDatabase = async () => {
   try {
     const connection = await mongoose.connect(process.env.MONGO_URI, {
       maxPoolSize: 1, // Limit connections for serverless
-      serverSelectionTimeoutMS: 5000, // 5 second timeout
+      serverSelectionTimeoutMS: 10000, // 10 second timeout
       socketTimeoutMS: 45000, // 45 second timeout
-      bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0, // Disable mongoose buffering
+      bufferCommands: true, // Re-enable buffering for compatibility
+      bufferMaxEntries: 100, // Allow some buffering
     });
     
     cachedDb = connection;
@@ -88,6 +88,15 @@ const connectToDatabase = async () => {
 
 // Initialize database connection
 connectToDatabase().catch(console.error);
+
+// Wait for connection to be ready before handling requests
+mongoose.connection.once('open', () => {
+  console.log('MongoDB connection is ready!');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
 
 // Get all holidays
 app.get('/holidays', async (req, res) => {
