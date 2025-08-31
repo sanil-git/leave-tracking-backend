@@ -95,23 +95,34 @@ const connectToDatabase = async () => {
   }
 };
 
-// Ensure database connection for each request with timeout
+// Ensure database connection for each request with aggressive timeout
 const ensureConnection = async () => {
   try {
+    // If already connected, return immediately
     if (mongoose.connection.readyState === 1) {
       return true;
     }
 
-    // Try to connect with a timeout
-    const connectionPromise = connectToDatabase();
+    // For serverless, always try a fresh connection with very short timeout
+    const connectionPromise = mongoose.connect(process.env.MONGO_URI, {
+      maxPoolSize: 1,
+      serverSelectionTimeoutMS: 3000, // 3 seconds max
+      socketTimeoutMS: 8000, // 8 seconds max
+      connectTimeoutMS: 3000, // 3 seconds max
+      bufferCommands: false, // Disable buffering for immediate feedback
+      bufferMaxEntries: 0,
+    });
+
+    // Race against a 4-second timeout
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Connection timeout')), 3000)
+      setTimeout(() => reject(new Error('Connection timeout - serverless function limit')), 4000)
     );
 
     await Promise.race([connectionPromise, timeoutPromise]);
+    console.log('Connection established successfully');
     return true;
   } catch (error) {
-    console.error('Failed to ensure database connection:', error);
+    console.error('Connection failed:', error.message);
     return false;
   }
 };
@@ -475,8 +486,15 @@ app.post('/auth/register', async (req, res) => {
 // User Login
 app.post('/auth/login', async (req, res) => {
   try {
-    // Ensure database connection is ready
-    await ensureConnection();
+    // Ensure database connection is ready with timeout
+    const isConnected = await ensureConnection();
+    
+    if (!isConnected) {
+      return res.status(503).json({ 
+        error: 'Database connection failed. Please try again in a few seconds.',
+        details: 'Serverless function connection timeout'
+      });
+    }
     
     const { email, password } = req.body;
     
@@ -510,7 +528,11 @@ app.post('/auth/login', async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Login error:', err);
+    res.status(500).json({ 
+      error: 'Login failed due to server error',
+      details: err.message 
+    });
   }
 });
 
