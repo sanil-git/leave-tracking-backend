@@ -51,6 +51,7 @@ app.use(cors({
     'http://localhost:3000', 
     'http://localhost:3001', 
     'http://localhost:3002',
+    'http://localhost:3006',
     'https://leave-tracking-frontend.vercel.app',
     'https://leave-tracking-frontend-git-main-sanil-git.vercel.app',
     'https://leave-tracking-frontend-ejjjaqums-sanil-manaktalas-projects.vercel.app',
