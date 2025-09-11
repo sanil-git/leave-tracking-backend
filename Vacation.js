@@ -11,6 +11,11 @@ const vacationSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  destination: {
+    type: String,
+    required: true,
+    trim: true
+  },
   fromDate: {
     type: String,
     required: true

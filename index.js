@@ -16,6 +16,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const client = require('prom-client');
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics();
+const { exec } = require('child_process');
+const path = require('path');
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -51,6 +53,7 @@ app.use(cors({
     'http://localhost:3000', 
     'http://localhost:3001', 
     'http://localhost:3002',
+    'http://localhost:3003',
     'http://localhost:3006',
     'https://leave-tracking-frontend.vercel.app',
     'https://leave-tracking-frontend-git-main-sanil-git.vercel.app',
@@ -302,7 +305,7 @@ app.get('/vacations', authenticateToken, async (req, res) => {
 // Add a new vacation for the authenticated user
 app.post('/vacations', authenticateToken, async (req, res) => {
   try {
-    const { name, fromDate, toDate, leaveType, days } = req.body;
+    const { name, destination, fromDate, toDate, leaveType, days } = req.body;
     
     // Try to create with user ID first, fallback to global if schema allows
     let vacation;
@@ -310,6 +313,7 @@ app.post('/vacations', authenticateToken, async (req, res) => {
       vacation = new Vacation({ 
         user: req.user.userId,
         name, 
+        destination,
         fromDate, 
         toDate, 
         leaveType, 
@@ -319,6 +323,7 @@ app.post('/vacations', authenticateToken, async (req, res) => {
       // If schema validation fails for user field, create without it
       vacation = new Vacation({ 
         name, 
+        destination,
         fromDate, 
         toDate, 
         leaveType, 
@@ -666,6 +671,88 @@ app.get('/test-connection', async (req, res) => {
       error: error.message,
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// AI-Powered Destination Insights endpoint
+app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
+  try {
+    const { startDate, endDate, destination, vacationName } = req.body;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Start date and end date are required' });
+    }
+    
+    // Only provide insights for future vacations
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const vacationStartDate = new Date(startDate);
+    
+    if (vacationStartDate < today) {
+      return res.status(400).json({ 
+        error: 'AI insights only available for future vacations',
+        message: 'Historical vacation analysis not supported'
+      });
+    }
+    
+    // Path to the Python script
+    const scriptPath = path.join(__dirname, 'vacation-timing-ai', 'vacation_destination_analyzer.py');
+    
+    // Build the Python command
+    let command = `python3 "${scriptPath}" --start-date "${startDate}" --end-date "${endDate}" --output json`;
+    
+    // Add current destination if provided
+    if (destination) {
+      command += ` --current-destination "${destination}"`;
+    }
+    
+    console.log(`Executing Python script: ${command}`);
+    
+    // Execute the Python script
+    exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Python script error:', error);
+        return res.status(500).json({ 
+          error: 'Failed to generate insights', 
+          details: error.message 
+        });
+      }
+      
+      if (stderr) {
+        console.warn('Python script stderr:', stderr);
+      }
+      
+      try {
+        // Parse the JSON output from Python script
+        const insights = JSON.parse(stdout);
+        
+        // Format for frontend consumption
+        const response = {
+          vacation_info: {
+            name: vacationName || 'Your Vacation',
+            start_date: startDate,
+            end_date: endDate,
+            destination: destination
+          },
+          ai_analysis: insights,
+          generated_at: new Date().toISOString()
+        };
+        
+        res.json(response);
+        
+      } catch (parseError) {
+        console.error('Failed to parse Python output:', parseError);
+        console.error('Python stdout:', stdout);
+        return res.status(500).json({ 
+          error: 'Failed to process insights', 
+          details: 'Invalid response from analysis engine' 
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error('Vacation insights endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
