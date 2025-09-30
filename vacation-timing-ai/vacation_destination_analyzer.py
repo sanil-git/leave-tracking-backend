@@ -20,7 +20,7 @@ class VacationDestinationAnalyzer:
         self.destinations = {
             # Hill Stations - Best for Summer (Apr-Jun)
             "hill_stations": {
-                "destinations": ["Kashmir", "Manali", "Shimla", "Darjeeling", "Coorg", "Munnar"],
+                "destinations": ["Kashmir (IN)", "Manali (IN)", "Shimla (IN)", "Dehradun (IN)", "Coorg (IN)", "Munnar (IN)"],
                 "best_months": [4, 5, 6, 7, 8, 9],  # Apr-Sep
                 "climate": "cool",
                 "duration_fit": {"short": 8, "medium": 9, "long": 10}
@@ -28,7 +28,7 @@ class VacationDestinationAnalyzer:
             
             # Beaches - Best for Winter (Oct-Mar) 
             "beaches": {
-                "destinations": ["Goa", "Kerala", "Andaman", "Puducherry"],
+                "destinations": ["Goa (IN)", "Kerala (IN)", "Andaman (IN)", "Puducherry (IN)"],
                 "best_months": [10, 11, 12, 1, 2, 3],  # Oct-Mar
                 "climate": "tropical",
                 "duration_fit": {"short": 9, "medium": 10, "long": 9}
@@ -36,7 +36,7 @@ class VacationDestinationAnalyzer:
             
             # Desert/Heritage - Best for Winter (Nov-Feb)
             "desert_heritage": {
-                "destinations": ["Rajasthan", "Agra", "Delhi", "Jaipur"],
+                "destinations": ["Rajasthan (IN)", "Agra (IN)", "Delhi (IN)", "Jaipur (IN)"],
                 "best_months": [11, 12, 1, 2],  # Nov-Feb
                 "climate": "arid",
                 "duration_fit": {"short": 7, "medium": 9, "long": 8}
@@ -44,7 +44,7 @@ class VacationDestinationAnalyzer:
             
             # Adventure/Trekking - Best for specific seasons
             "adventure": {
-                "destinations": ["Leh Ladakh", "Rishikesh", "Spiti Valley"],
+                "destinations": ["Leh Ladakh (IN)", "Spiti Valley (IN)"],
                 "best_months": [5, 6, 7, 8, 9],  # May-Sep
                 "climate": "mountain",
                 "duration_fit": {"short": 6, "medium": 8, "long": 10}
@@ -52,7 +52,7 @@ class VacationDestinationAnalyzer:
             
             # International - Year-round with seasonal preferences
             "international": {
-                "destinations": ["Bali", "Thailand", "Singapore", "Dubai", "Nepal"],
+                "destinations": ["Singapore", "Dubai", "Thailand", "NYC (US)", "Toronto (CA)", "Atlanta (US)", "London (UK)"],
                 "best_months": [1, 2, 3, 4, 5, 10, 11, 12],  # Avoid monsoon
                 "climate": "varied",
                 "duration_fit": {"short": 7, "medium": 9, "long": 10}
@@ -87,17 +87,17 @@ class VacationDestinationAnalyzer:
             # Get season analysis
             season_info = self._analyze_season(start)
             
-            # Get destination recommendations
-            recommendations = self._get_destination_recommendations(
-                start.month, duration_category, season_info
-            )
-            
-            # Analyze current choice if provided
+            # Analyze current choice if provided (do this first to get category)
             current_analysis = None
             if current_destination:
                 current_analysis = self._analyze_current_choice(
                     current_destination, start.month, duration_category
                 )
+            
+            # Get destination recommendations (prioritize same category)
+            recommendations = self._get_destination_recommendations(
+                start.month, duration_category, season_info, current_destination
+            )
             
             return {
                 "vacation_analysis": {
@@ -151,29 +151,47 @@ class VacationDestinationAnalyzer:
                 "ideal_for": ["hill_stations", "beaches"]
             }
     
-    def _get_destination_recommendations(self, month: int, duration: str, season_info: Dict) -> List[Dict]:
+    def _get_destination_recommendations(self, month: int, duration: str, season_info: Dict, current_destination: str = None) -> List[Dict]:
         """Get ranked destination recommendations based on timing and duration"""
         recommendations = []
+        current_category = None
+        
+        # Find the category of current destination if provided
+        if current_destination:
+            for category, data in self.destinations.items():
+                if current_destination in data["destinations"]:
+                    current_category = category
+                    break
         
         for category, data in self.destinations.items():
+            # Calculate score based on month match and duration fit
+            month_score = 10 if month in data["best_months"] else 5
+            duration_score = data["duration_fit"][duration]
+            total_score = (month_score + duration_score) / 2
+            
+            # Boost score significantly if same category as current destination
+            category_boost = 0
+            if current_category and category == current_category:
+                category_boost = 5  # Add 5 points for same category to ensure priority
+            
+            # Additional boost if category is ideal for the season
             if category in season_info["ideal_for"]:
-                # Calculate score based on month match and duration fit
-                month_score = 10 if month in data["best_months"] else 5
-                duration_score = data["duration_fit"][duration]
-                total_score = (month_score + duration_score) / 2
-                
-                # Pick top destination from category
-                top_destination = data["destinations"][0]
-                
+                total_score += 1  # Small boost for seasonal appropriateness
+            
+            # Pick top 2 destinations from category (not including current destination)
+            available_destinations = [d for d in data["destinations"] if d != current_destination]
+            
+            for dest in available_destinations[:2]:
                 recommendations.append({
-                    "destination": top_destination,
+                    "destination": dest,
                     "category": category.replace("_", " ").title(),
-                    "score": total_score,
+                    "score": total_score + category_boost,
                     "reasoning": self._get_recommendation_reasoning(category, month, duration),
-                    "climate": data["climate"]
+                    "climate": data["climate"],
+                    "same_category": category == current_category
                 })
         
-        # Sort by score and return top 3
+        # Sort by score (same category gets boosted significantly) and return top 3
         recommendations.sort(key=lambda x: x["score"], reverse=True)
         return recommendations[:3]
     
@@ -258,12 +276,24 @@ class VacationDestinationAnalyzer:
         
         top_rec = recommendations[0]
         
+        # Check if top recommendation is same category
+        is_same_category = top_rec.get("same_category", False)
+        
         if current_analysis and current_analysis.get("score", 0) >= 8:
-            return f"Your choice looks great! {top_rec['destination']} is also excellent for similar reasons."
+            if is_same_category:
+                return f"Great choice! Also consider {top_rec['destination']} in the same category."
+            else:
+                return f"Your choice looks great! {top_rec['destination']} is also excellent for similar reasons."
         elif current_analysis and current_analysis.get("score", 0) < 6:
-            return f"Consider {top_rec['destination']} instead - {top_rec['reasoning']}"
+            if is_same_category:
+                return f"Consider {top_rec['destination']} instead for better timing in the same category."
+            else:
+                return f"Consider {top_rec['destination']} instead - {top_rec['reasoning']}"
         else:
-            return f"Perfect timing for {top_rec['destination']} - {top_rec['reasoning']}"
+            if is_same_category:
+                return f"Also check {top_rec['destination']} - similar option with {top_rec['reasoning'].lower()}"
+            else:
+                return f"Perfect timing for {top_rec['destination']} - {top_rec['reasoning']}"
 
 def main():
     """Command line interface for the analyzer"""
