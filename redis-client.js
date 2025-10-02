@@ -1,32 +1,45 @@
 const Redis = require('ioredis');
 
-// Initialize Redis connection
-const redis = new Redis(process.env.REDIS_URL, {
+// Initialize Redis connection (graceful degradation if Redis unavailable)
+const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL, {
   retryStrategy: (times) => {
+    if (times > 10) return null; // Stop retrying after 10 attempts
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
-  lazyConnect: false
-});
+  lazyConnect: true, // Don't block server startup
+  enableOfflineQueue: false // Fail fast if Redis is down
+}) : null;
 
 // Event handlers
-redis.on('connect', () => {
-  console.log('✅ Redis connected successfully');
-});
+if (redis) {
+  redis.on('connect', () => {
+    console.log('✅ Redis connected successfully');
+  });
 
-redis.on('ready', () => {
-  console.log('✅ Redis is ready to accept commands');
-});
+  redis.on('ready', () => {
+    console.log('✅ Redis is ready to accept commands');
+  });
 
-redis.on('error', (err) => {
-  console.error('❌ Redis connection error:', err.message);
-});
+  redis.on('error', (err) => {
+    console.error('❌ Redis connection error:', err.message);
+    // Don't crash the server on Redis errors
+  });
 
-redis.on('close', () => {
-  console.log('⚠️  Redis connection closed');
-});
+  redis.on('close', () => {
+    console.log('⚠️  Redis connection closed');
+  });
+
+  // Connect to Redis (non-blocking)
+  redis.connect().catch(err => {
+    console.error('❌ Failed to connect to Redis:', err.message);
+    console.log('⚠️  Server will continue without caching');
+  });
+} else {
+  console.log('⚠️  Redis not configured - caching disabled');
+}
 
 // Helper functions
 const CACHE_PREFIX = 'ai:insights:vacation:';
@@ -37,6 +50,8 @@ const CACHE_PREFIX = 'ai:insights:vacation:';
  * @returns {object|null} - Cached insights or null
  */
 async function getCachedInsights(vacationId) {
+  if (!redis) return null; // Redis not configured
+  
   try {
     const key = `${CACHE_PREFIX}${vacationId}`;
     const cached = await redis.get(key);
@@ -61,6 +76,8 @@ async function getCachedInsights(vacationId) {
  * @param {object} insights - AI insights object
  */
 async function cacheInsights(vacationId, vacationEndDate, insights) {
+  if (!redis) return; // Redis not configured
+  
   try {
     const key = `${CACHE_PREFIX}${vacationId}`;
     
@@ -96,6 +113,8 @@ async function cacheInsights(vacationId, vacationEndDate, insights) {
  * @param {string} vacationId - MongoDB vacation ID
  */
 async function invalidateCache(vacationId) {
+  if (!redis) return; // Redis not configured
+  
   try {
     const key = `${CACHE_PREFIX}${vacationId}`;
     const result = await redis.del(key);
@@ -112,6 +131,14 @@ async function invalidateCache(vacationId) {
  * Get cache statistics
  */
 async function getCacheStats() {
+  if (!redis) {
+    return {
+      redis_connected: false,
+      redis_status: 'not_configured',
+      message: 'Redis not configured'
+    };
+  }
+  
   try {
     const keys = await redis.keys(`${CACHE_PREFIX}*`);
     const dbSize = await redis.dbsize();
