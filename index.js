@@ -18,6 +18,7 @@ const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics();
 const { exec } = require('child_process');
 const path = require('path');
+const { getCachedInsights, cacheInsights, invalidateCache, getCacheStats } = require('./redis-client');
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -341,10 +342,16 @@ app.post('/vacations', authenticateToken, async (req, res) => {
 app.put('/vacations/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, fromDate, toDate, leaveType, days } = req.body;
+    const { name, fromDate, toDate, leaveType, days, destination } = req.body;
+    
+    // NEW: Invalidate cache if critical fields changed
+    if (fromDate || toDate || destination) {
+      await invalidateCache(id);
+    }
+    
     const vacation = await Vacation.findOneAndUpdate(
       { _id: id, user: req.user.userId }, 
-      { name, fromDate, toDate, leaveType, days }, 
+      { name, fromDate, toDate, leaveType, days, destination }, 
       { new: true, runValidators: true }
     );
     if (!vacation) return res.status(404).json({ error: 'Vacation not found' });
@@ -358,6 +365,10 @@ app.put('/vacations/:id', authenticateToken, async (req, res) => {
 app.delete('/vacations/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // NEW: Invalidate cache before deleting
+    await invalidateCache(id);
+    
     const deleted = await Vacation.findOneAndDelete({ _id: id, user: req.user.userId });
     if (!deleted) return res.status(404).json({ error: 'Vacation not found' });
     res.json({ success: true });
@@ -674,16 +685,42 @@ app.get('/test-connection', async (req, res) => {
   }
 });
 
-// AI-Powered Destination Insights endpoint
+// Cache statistics endpoint (for monitoring)
+app.get('/api/cache-stats', authenticateToken, async (req, res) => {
+  try {
+    const stats = await getCacheStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get cache stats' });
+  }
+});
+
+// AI-Powered Destination Insights endpoint (with Redis caching)
 app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
   try {
-    const { startDate, endDate, destination, vacationName } = req.body;
+    const { vacationId, startDate, endDate, destination, vacationName } = req.body;
     
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Start date and end date are required' });
     }
     
-    // Only provide insights for future vacations
+    // NEW: Check Redis cache first (if vacationId provided)
+    if (vacationId) {
+      const cachedInsights = await getCachedInsights(vacationId);
+      if (cachedInsights) {
+        const cacheAgeSeconds = Math.floor(
+          (Date.now() - new Date(cachedInsights.cached_at)) / 1000
+        );
+        return res.json({
+          ...cachedInsights,
+          from_cache: true,
+          cache_age_seconds: cacheAgeSeconds,
+          cache_age_readable: `${Math.floor(cacheAgeSeconds / 60)} minutes ago`
+        });
+      }
+    }
+    
+    // Cache miss - check if future vacation
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const vacationStartDate = new Date(startDate);
@@ -706,10 +743,10 @@ app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
       command += ` --current-destination "${destination}"`;
     }
     
-    console.log(`Executing Python script: ${command}`);
+    console.log(`🐍 Executing Python script (cache miss): ${command}`);
     
     // Execute the Python script
-    exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
+    exec(command, { timeout: 10000 }, async (error, stdout, stderr) => {
       if (error) {
         console.error('Python script error:', error);
         return res.status(500).json({ 
@@ -735,8 +772,14 @@ app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
             destination: destination
           },
           ai_analysis: insights,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString(),
+          from_cache: false
         };
+        
+        // NEW: Cache the results in Redis (if vacationId and endDate provided)
+        if (vacationId && endDate) {
+          await cacheInsights(vacationId, endDate, response);
+        }
         
         res.json(response);
         

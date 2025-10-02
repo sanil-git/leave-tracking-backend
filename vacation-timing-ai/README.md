@@ -20,11 +20,80 @@ Intelligent destination and timing analysis for existing PlanWise vacations usin
 - **Phase 5**: Multi-source data optimization engine
 
 ## 🎯 Next Implementation Plan
+
+### **⚡ NEXT STEP: Redis Cloud Caching (High Priority)**
+**Problem**: AI insights re-compute on every page refresh (slow, wasteful)  
+**Solution**: Cache insights in Redis, archive to MongoDB after vacation ends
+
+#### **Why Redis + MongoDB Hybrid?**
+```
+Redis (Active Vacations):
+- Ultra-fast lookups (0.5ms vs 2000ms Python execution)
+- TTL = Until vacation ends
+- Auto-cleanup
+
+MongoDB (Historical Archive):
+- Permanent storage for past trips
+- Analytics & trends ("Your avg trip rating: 8.2/10")
+- Low-cost long-term storage
+```
+
+#### **Setup Instructions (Redis Cloud - Free Tier)**
+
+**1. Create Free Redis Cloud Account:**
+```
+Visit: https://redis.com/try-free/
+- Sign up with email (no credit card needed)
+- Free Tier: 30MB RAM (enough for 15,000 AI insights!)
+- Takes 3 minutes
+```
+
+**2. Create Database:**
+```
+1. Click "New Database"
+2. Choose "Redis Stack"
+3. Select region closest to your app
+4. Click "Create"
+```
+
+**3. Get Connection Info:**
+```
+1. Click on database → "Configuration"
+2. Copy "Public endpoint"
+3. Copy "Default user password"
+```
+
+**4. Add to Backend `.env`:**
+```bash
+REDIS_URL=redis://default:YOUR_PASSWORD@redis-12345.c123.us-east-1.ec2.cloud.redislabs.com:12345
+```
+
+**5. Install Redis Client:**
+```bash
+cd leave-tracking-backend
+npm install ioredis
+```
+
+**6. Implementation (100 lines of code):**
+- Redis cache layer (30 lines)
+- Archival cron job (40 lines)
+- Unified lookup function (30 lines)
+
+#### **Expected Performance Gains:**
+```
+Before: 2-5 seconds per page load (Python runs every time)
+After:  50ms per page load (Redis cache hit)
+Result: 96% faster! 🚀
+```
+
+---
+
 ### **Priority 1: Flight Price Scraper**
 - **Target Sites**: Skyscanner, Kayak, Google Flights
 - **Python Libraries**: `requests`, `beautifulsoup4`, `selenium`
 - **Output**: Cheapest flight prices, price trends, savings tips
 - **Integration**: New API endpoint `/api/flight-prices`
+- **Note**: Will require Redis caching (rate limits on flight APIs)
 
 ### **Priority 2: Weather Forecast Integration**
 - **Data Sources**: OpenWeatherMap API, Weather.com scraping
