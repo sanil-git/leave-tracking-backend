@@ -695,6 +695,28 @@ app.get('/api/cache-stats', authenticateToken, async (req, res) => {
   }
 });
 
+// Debug endpoint to check vacation data (temporary)
+app.get('/debug/vacations', authenticateToken, async (req, res) => {
+  try {
+    // Get all vacations (user-specific and global)
+    const userVacations = await Vacation.find({ user: req.user.userId }).sort({ fromDate: 1 });
+    const globalVacations = await Vacation.find({ user: { $exists: false } }).sort({ fromDate: 1 });
+    const allVacations = await Vacation.find({}).sort({ fromDate: 1 });
+    
+    res.json({
+      current_user_id: req.user.userId,
+      user_vacations: userVacations,
+      global_vacations: globalVacations,
+      all_vacations: allVacations,
+      total_count: allVacations.length,
+      user_count: userVacations.length,
+      global_count: globalVacations.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // AI-Powered Destination Insights endpoint (with Redis caching)
 app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
   try {
