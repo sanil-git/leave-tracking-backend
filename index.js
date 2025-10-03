@@ -19,6 +19,10 @@ collectDefaultMetrics();
 const { exec } = require('child_process');
 const path = require('path');
 const { getCachedInsights, cacheInsights, invalidateCache, getCacheStats } = require('./redis-client');
+const WeatherAnalyzer = require('./weather-analyzer');
+
+// Initialize Weather AI
+const weatherAnalyzer = new WeatherAnalyzer();
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -714,6 +718,40 @@ app.get('/debug/vacations', authenticateToken, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Weather AI Forecast endpoint
+app.post('/api/weather-forecast', authenticateToken, async (req, res) => {
+  try {
+    const { destination, startDate, endDate } = req.body;
+    
+    if (!destination || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Destination, start date, and end date are required' });
+    }
+    
+    // Check if we have OpenWeather API key
+    if (!process.env.OPENWEATHER_API_KEY) {
+      return res.status(503).json({ 
+        error: 'Weather service not configured',
+        message: 'OpenWeather API key not found'
+      });
+    }
+    
+    // Get weather forecast with AI analysis
+    const weatherForecast = await weatherAnalyzer.getWeatherForecast(destination, startDate, endDate);
+    
+    res.json({
+      success: true,
+      ...weatherForecast
+    });
+    
+  } catch (error) {
+    console.error('Weather forecast error:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to get weather forecast',
+      details: error.message 
+    });
   }
 });
 
