@@ -34,6 +34,34 @@ const vacationSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1
+  },
+  // Approval workflow fields
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'cancelled'],
+    default: 'pending'
+  },
+  managerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    default: null
+  },
+  submittedAt: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true

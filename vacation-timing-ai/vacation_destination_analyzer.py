@@ -20,7 +20,7 @@ class VacationDestinationAnalyzer:
         self.destinations = {
             # Hill Stations - Best for Summer (Apr-Jun)
             "hill_stations": {
-                "destinations": ["Kashmir (IN)", "Manali (IN)", "Shimla (IN)", "Dehradun (IN)", "Coorg (IN)", "Munnar (IN)"],
+                "destinations": ["Srinagar (IN)", "Manali (IN)", "Shimla (IN)", "Dehradun (IN)", "Coorg (IN)", "Munnar (IN)"],
                 "best_months": [4, 5, 6, 7, 8, 9],  # Apr-Sep
                 "climate": "cool",
                 "duration_fit": {"short": 8, "medium": 9, "long": 10}
@@ -36,7 +36,7 @@ class VacationDestinationAnalyzer:
             
             # Desert/Heritage - Best for Winter (Nov-Feb)
             "desert_heritage": {
-                "destinations": ["Rajasthan (IN)", "Agra (IN)", "Delhi (IN)", "Jaipur (IN)"],
+                "destinations": ["Agra (IN)", "Delhi (IN)", "Jaipur (IN)"],
                 "best_months": [11, 12, 1, 2],  # Nov-Feb
                 "climate": "arid",
                 "duration_fit": {"short": 7, "medium": 9, "long": 8}
@@ -52,7 +52,7 @@ class VacationDestinationAnalyzer:
             
             # International - Year-round with seasonal preferences
             "international": {
-                "destinations": ["Singapore", "Dubai", "Thailand", "NYC (US)", "Toronto (CA)", "Atlanta (US)", "London (UK)"],
+                "destinations": ["Singapore", "Dubai", "Bangkok (TH)", "NYC (US)", "Toronto (CA)", "Atlanta (US)", "London (UK)"],
                 "best_months": [1, 2, 3, 4, 5, 10, 11, 12],  # Avoid monsoon
                 "climate": "varied",
                 "duration_fit": {"short": 7, "medium": 9, "long": 10}

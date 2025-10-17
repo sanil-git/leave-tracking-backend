@@ -1,0 +1,81 @@
+
+> backend@1.0.0 start
+> node index.js
+
+Server running on port 8000
+Server accessible at http://0.0.0.0:8000
+✅ Redis connected successfully
+✅ Redis is ready to accept commands
+MongoDB connection is open and ready!
+Connected to MongoDB Atlas!
+MongoDB connection is ready!
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+❌ Redis connection error: read ETIMEDOUT
+⚠️  Redis connection closed
+✅ Redis connected successfully
+✅ Redis is ready to accept commands
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+❌ Redis connection error: read ETIMEDOUT
+⚠️  Redis connection closed
+✅ Redis connected successfully
+✅ Redis is ready to accept commands
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+❌ Redis connection error: read ETIMEDOUT
+⚠️  Redis connection closed
+✅ Redis connected successfully
+✅ Redis is ready to accept commands
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+❌ Redis connection error: read ETIMEDOUT
+⚠️  Redis connection closed
+✅ Redis connected successfully
+✅ Redis is ready to accept commands
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+MongoDB connection disconnected
+❌ Redis connection error: read ETIMEDOUT
+⚠️  Redis connection closed
+✅ Redis connected successfully
+✅ Redis is ready to accept commands
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0
+✅ Cache HIT for vacation 68de85bd3c38c6827b18faea
+✅ Cache HIT for vacation 68de84fc3c38c6827b18fae0

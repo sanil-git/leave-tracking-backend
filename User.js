@@ -21,8 +21,39 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
+    enum: ['employee', 'manager', 'admin'],
+    default: 'employee'
+  },
+  position: {
+    type: String,
+    default: 'Employee'
+  },
+  teamId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Team',
+    default: null
+  },
+  managerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  needsPasswordReset: {
+    type: Boolean,
+    default: false
+  },
+  tempPassword: {
+    type: String,
+    default: null
+  },
+  tempPasswordCreatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  tempPasswordCreatedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

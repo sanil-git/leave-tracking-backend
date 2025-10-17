@@ -10,6 +10,8 @@ const axios = require('axios');
 const Team = require('./Team');
 const LeaveBalance = require('./LeaveBalance');
 const User = require('./User');
+const RoleChangeLog = require('./RoleChangeLog');
+const Notification = require('./Notification');
 const app = express();
 // Remove PORT for Vercel serverless functions
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -20,6 +22,27 @@ const { exec } = require('child_process');
 const path = require('path');
 const { getCachedInsights, cacheInsights, invalidateCache, getCacheStats } = require('./redis-client');
 const WeatherAnalyzer = require('./weather-analyzer');
+const { requireManager, requireAdmin } = require('./roleMiddleware');
+
+// Notification helper function
+const createNotification = async (userId, type, title, message, data = {}, relatedId = null, relatedType = null) => {
+  try {
+    const notification = new Notification({
+      userId,
+      type,
+      title,
+      message,
+      data,
+      relatedId,
+      relatedType,
+      priority: type.includes('urgent') || type.includes('rejected') ? 'high' : 'medium'
+    });
+    await notification.save();
+    return notification;
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+};
 
 // Initialize Weather AI
 const weatherAnalyzer = new WeatherAnalyzer();
@@ -312,33 +335,303 @@ app.post('/vacations', authenticateToken, async (req, res) => {
   try {
     const { name, destination, fromDate, toDate, leaveType, days } = req.body;
     
-    // Try to create with user ID first, fallback to global if schema allows
-    let vacation;
-    try {
-      vacation = new Vacation({ 
-        user: req.user.userId,
-        name, 
-        destination,
-        fromDate, 
-        toDate, 
-        leaveType, 
-        days 
-      });
-    } catch (schemaError) {
-      // If schema validation fails for user field, create without it
-      vacation = new Vacation({ 
-        name, 
-        destination,
-        fromDate, 
-        toDate, 
-        leaveType, 
-        days 
-      });
+    // Get user details to find their manager
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
+    
+    // Create vacation with manager assignment
+    const vacation = new Vacation({ 
+      user: req.user.userId,
+      name, 
+      destination,
+      fromDate, 
+      toDate, 
+      leaveType, 
+      days,
+      managerId: user.managerId || user._id, // Use user's manager or self if no manager
+      status: 'pending',
+      submittedAt: new Date()
+    });
+    
     await vacation.save();
+    
+    // Create notification for manager
+    if (user.managerId && user.managerId.toString() !== user._id.toString()) {
+      await createNotification(
+        user.managerId,
+        'leave_submitted',
+        'New Leave Request',
+        `${user.name} has submitted a leave request for ${days} day(s) from ${fromDate} to ${toDate}`,
+        {
+          vacationId: vacation._id,
+          userName: user.name,
+          userEmail: user.email,
+          leaveType,
+          days,
+          fromDate,
+          toDate,
+          destination
+        },
+        vacation._id,
+        'vacation'
+      );
+    }
+    
+    // Create notification for user
+    await createNotification(
+      req.user.userId,
+      'leave_submitted',
+      'Leave Request Submitted',
+      `Your leave request for ${days} day(s) from ${fromDate} to ${toDate} has been submitted for approval`,
+      {
+        vacationId: vacation._id,
+        leaveType,
+        days,
+        fromDate,
+        toDate,
+        destination
+      },
+      vacation._id,
+      'vacation'
+    );
+    
     res.status(201).json(vacation);
   } catch (err) {
+    console.error('Create vacation error:', err);
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Leave Approval API endpoints
+
+// Get pending leave requests for manager
+app.get('/api/leaves/pending', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const pendingLeaves = await Vacation.find({ 
+      status: 'pending',
+      managerId: req.user.userId 
+    })
+    .populate('user', 'name email')
+    .sort({ submittedAt: -1 });
+    
+    res.json(pendingLeaves);
+  } catch (error) {
+    console.error('Get pending leaves error:', error);
+    res.status(500).json({ error: 'Failed to fetch pending leaves' });
+  }
+});
+
+// Approve a leave request
+app.put('/api/leaves/:leaveId/approve', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { leaveId } = req.params;
+    const { reason } = req.body;
+    
+    const leave = await Vacation.findById(leaveId)
+      .populate('user', 'name email')
+      .populate('managerId', 'name email');
+    
+    if (!leave) {
+      return res.status(404).json({ error: 'Leave request not found' });
+    }
+    
+    // Check if user is the manager of this leave request
+    if (leave.managerId._id.toString() !== req.user.userId) {
+      return res.status(403).json({ error: 'Not authorized to approve this leave request' });
+    }
+    
+    if (leave.status !== 'pending') {
+      return res.status(400).json({ error: 'Leave request is not pending' });
+    }
+    
+    // Update leave status
+    leave.status = 'approved';
+    leave.approvedBy = req.user.userId;
+    leave.approvedAt = new Date();
+    await leave.save();
+    
+    // Create notification for employee
+    await createNotification(
+      leave.user._id,
+      'leave_approved',
+      'Leave Request Approved',
+      `Your leave request for ${leave.days} day(s) from ${leave.fromDate} to ${leave.toDate} has been approved`,
+      {
+        vacationId: leave._id,
+        leaveType: leave.leaveType,
+        days: leave.days,
+        fromDate: leave.fromDate,
+        toDate: leave.toDate,
+        destination: leave.destination,
+        approvedBy: leave.managerId.name
+      },
+      leave._id,
+      'vacation'
+    );
+    
+    res.json({
+      message: 'Leave request approved successfully',
+      leave: {
+        _id: leave._id,
+        status: leave.status,
+        approvedBy: leave.approvedBy,
+        approvedAt: leave.approvedAt
+      }
+    });
+  } catch (error) {
+    console.error('Approve leave error:', error);
+    res.status(500).json({ error: 'Failed to approve leave request' });
+  }
+});
+
+// Reject a leave request
+app.put('/api/leaves/:leaveId/reject', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { leaveId } = req.params;
+    const { reason } = req.body;
+    
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+    
+    const leave = await Vacation.findById(leaveId)
+      .populate('user', 'name email')
+      .populate('managerId', 'name email');
+    
+    if (!leave) {
+      return res.status(404).json({ error: 'Leave request not found' });
+    }
+    
+    // Check if user is the manager of this leave request
+    if (leave.managerId._id.toString() !== req.user.userId) {
+      return res.status(403).json({ error: 'Not authorized to reject this leave request' });
+    }
+    
+    if (leave.status !== 'pending') {
+      return res.status(400).json({ error: 'Leave request is not pending' });
+    }
+    
+    // Update leave status
+    leave.status = 'rejected';
+    leave.approvedBy = req.user.userId;
+    leave.approvedAt = new Date();
+    leave.rejectionReason = reason;
+    await leave.save();
+    
+    // Create notification for employee
+    await createNotification(
+      leave.user._id,
+      'leave_rejected',
+      'Leave Request Rejected',
+      `Your leave request for ${leave.days} day(s) from ${leave.fromDate} to ${leave.toDate} has been rejected. Reason: ${reason}`,
+      {
+        vacationId: leave._id,
+        leaveType: leave.leaveType,
+        days: leave.days,
+        fromDate: leave.fromDate,
+        toDate: leave.toDate,
+        destination: leave.destination,
+        rejectedBy: leave.managerId.name,
+        rejectionReason: reason
+      },
+      leave._id,
+      'vacation'
+    );
+    
+    res.json({
+      message: 'Leave request rejected successfully',
+      leave: {
+        _id: leave._id,
+        status: leave.status,
+        approvedBy: leave.approvedBy,
+        approvedAt: leave.approvedAt,
+        rejectionReason: leave.rejectionReason
+      }
+    });
+  } catch (error) {
+    console.error('Reject leave error:', error);
+    res.status(500).json({ error: 'Failed to reject leave request' });
+  }
+});
+
+// Get user's notifications
+app.get('/api/notifications', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, unreadOnly = false } = req.query;
+    const skip = (page - 1) * limit;
+    
+    let query = { userId: req.user.userId };
+    if (unreadOnly === 'true') {
+      query.isRead = false;
+    }
+    
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await Notification.countDocuments(query);
+    const unreadCount = await Notification.countDocuments({ 
+      userId: req.user.userId, 
+      isRead: false 
+    });
+    
+    res.json({
+      notifications,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalNotifications: total,
+        hasNext: skip + notifications.length < total,
+        hasPrev: page > 1
+      },
+      unreadCount
+    });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:notificationId/read', authenticateToken, async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    
+    const notification = await Notification.findOneAndUpdate(
+      { _id: notificationId, userId: req.user.userId },
+      { isRead: true, readAt: new Date() },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    
+    res.json({ message: 'Notification marked as read', notification });
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
+  }
+});
+
+// Mark all notifications as read
+app.put('/api/notifications/read-all', authenticateToken, async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      { userId: req.user.userId, isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+    
+    res.json({ 
+      message: `${result.modifiedCount} notifications marked as read`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Mark all notifications read error:', error);
+    res.status(500).json({ error: 'Failed to mark notifications as read' });
   }
 });
 
@@ -377,6 +670,530 @@ app.delete('/vacations/:id', authenticateToken, async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Vacation not found' });
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Management API endpoints
+
+// Get all users (Admin only)
+app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}, 'name email role createdAt')
+      .populate('teamId', 'name')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      users: users.map(user => ({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        teamName: user.teamId?.name || 'Unassigned',
+        createdAt: user.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Update user role (Admin only)
+app.put('/api/admin/users/:userId/role', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role, reason } = req.body;
+    
+    // Validate role
+    if (!['employee', 'manager', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const oldRole = user.role;
+    user.role = role;
+    await user.save();
+    
+    // Create audit log entry
+    const roleChangeLog = new RoleChangeLog({
+      userId: user._id,
+      userEmail: user.email,
+      userName: user.name,
+      oldRole: oldRole,
+      newRole: role,
+      changedBy: req.user._id,
+      changedByEmail: req.user.email,
+      reason: reason || 'No reason provided',
+      ipAddress: req.ip || req.connection.remoteAddress
+    });
+    
+    await roleChangeLog.save();
+    
+    // Log the role change to console as well
+    console.log(`Admin ${req.user.email} changed user ${user.email} role from ${oldRole} to ${role}. Reason: ${reason || 'No reason provided'}`);
+    
+    res.json({
+      message: 'Role updated successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      change: {
+        from: oldRole,
+        to: role,
+        changedBy: req.user.email,
+        reason: reason || 'No reason provided',
+        timestamp: new Date()
+      },
+      auditLogId: roleChangeLog._id
+    });
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({ error: 'Failed to update user role' });
+  }
+});
+
+// Temporary Password Management API endpoints
+
+// Get users with temporary passwords (for managers/admins to view)
+app.get('/api/users/temp-passwords', authenticateToken, async (req, res) => {
+  try {
+    const { role } = req.user;
+    
+    let query = {
+      tempPassword: { $exists: true, $ne: null },
+      tempPasswordCreatedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+    };
+    
+    // Managers can only see users they created
+    if (role === 'manager') {
+      query.tempPasswordCreatedBy = req.user.userId;
+    }
+    // Admins can see all temporary passwords
+    
+    const users = await User.find(query)
+      .select('name email role tempPassword tempPasswordCreatedAt teamId')
+      .populate('tempPasswordCreatedBy', 'name email')
+      .populate('teamId', 'name')
+      .sort({ tempPasswordCreatedAt: -1 });
+    
+    res.json({
+      success: true,
+      users: users.map(user => ({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        tempPassword: user.tempPassword,
+        tempPasswordCreatedAt: user.tempPasswordCreatedAt,
+        createdBy: user.tempPasswordCreatedBy,
+        team: user.teamId
+      }))
+    });
+  } catch (error) {
+    console.error('Get temp passwords error:', error);
+    res.status(500).json({ error: 'Failed to fetch temporary passwords' });
+  }
+});
+
+// Clear temporary password (when user changes password)
+app.put('/api/users/:userId/clear-temp-password', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Only allow the user themselves, their manager, or an admin to clear temp password
+    if (userId !== req.user.userId && user.managerId?.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    user.tempPassword = null;
+    user.tempPasswordCreatedBy = null;
+    user.tempPasswordCreatedAt = null;
+    user.needsPasswordReset = false;
+    
+    await user.save();
+    
+    res.json({ success: true, message: 'Temporary password cleared' });
+  } catch (error) {
+    console.error('Clear temp password error:', error);
+    res.status(500).json({ error: 'Failed to clear temporary password' });
+  }
+});
+
+// Team Management API endpoints
+
+// Create a new team (for managers/admins)
+app.post('/api/teams', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Team name is required' });
+    }
+    
+    // Check if user already has a team as manager
+    const existingTeam = await Team.findOne({ managerId: req.user.userId });
+    if (existingTeam) {
+      return res.status(400).json({ error: 'You already manage a team' });
+    }
+    
+    // Create new team
+    const team = new Team({
+      name: name.trim(),
+      description: description?.trim() || '',
+      managerId: req.user.userId,
+      members: [req.user.userId] // Add the manager as the first member
+    });
+    
+    await team.save();
+    
+    // Update user's teamId and managerId
+    await User.findByIdAndUpdate(req.user.userId, {
+      teamId: team._id,
+      managerId: req.user.userId
+    });
+    
+    // Populate the response
+    await team.populate([
+      { path: 'members', select: 'name email role' },
+      { path: 'managerId', select: 'name email' }
+    ]);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Team created successfully',
+      team: {
+        teamId: team._id,
+        teamName: team.name,
+        description: team.description,
+        manager: team.managerId,
+        members: team.members,
+        memberCount: team.members.length,
+        createdAt: team.createdAt
+      }
+    });
+  } catch (err) {
+    console.error('Create team error:', err);
+    res.status(500).json({ error: 'Failed to create team' });
+  }
+});
+
+// Get manager's team info and members
+app.get('/api/teams/my-team', authenticateToken, requireManager, async (req, res) => {
+  try {
+    // Find team where current user is the manager OR where user is a member (for admins who are also managers)
+    let team = await Team.findOne({ managerId: req.user.userId })
+      .populate('members', 'name email role')
+      .populate('managerId', 'name email');
+    
+    // If no team found as manager, check if user is a member of any team (for admins)
+    if (!team && req.user.role === 'admin') {
+      const user = await User.findById(req.user.userId);
+      if (user && user.teamId) {
+        team = await Team.findById(user.teamId)
+          .populate('members', 'name email role')
+          .populate('managerId', 'name email');
+      }
+    }
+    
+    if (!team) {
+      return res.status(404).json({ 
+        error: 'No team found',
+        message: 'You are not currently managing any team'
+      });
+    }
+    
+    console.log('Team data being returned:', {
+      teamId: team._id,
+      teamName: team.name,
+      description: team.description,
+      manager: team.managerId,
+      memberCount: team.members.length
+    });
+    
+    res.json({
+      teamId: team._id,
+      teamName: team.name,
+      description: team.description,
+      manager: team.managerId,
+      members: team.members,
+      memberCount: team.members.length,
+      createdAt: team.createdAt
+    });
+  } catch (err) {
+    console.error('Get my team error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all team members (with details)
+app.get('/api/teams/:teamId/members', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    
+    // Verify team exists and user is the manager (or admin)
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    // Check if user is the manager of this team or an admin
+    if (team.managerId.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied - not your team' });
+    }
+    
+    // Get all members with their details
+    const members = await User.find({ 
+      _id: { $in: team.members } 
+    }).select('name email role createdAt');
+    
+    res.json({
+      teamId: team._id,
+      teamName: team.name,
+      members: members
+    });
+  } catch (err) {
+    console.error('Get team members error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all leaves for team members
+app.get('/api/teams/:teamId/leaves', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    
+    // Verify team exists and user is the manager (or admin)
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    // Check if user is the manager of this team or an admin
+    if (team.managerId.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied - not your team' });
+    }
+    
+    // Get all vacations for team members (only approved ones)
+    const teamVacations = await Vacation.find({
+      user: { $in: team.members },
+      status: 'approved'
+    }).populate('user', 'name email').sort({ fromDate: 1 });
+    
+    console.log('Team leaves query:', {
+      teamId,
+      teamMembers: team.members.length,
+      approvedVacations: teamVacations.length,
+      vacations: teamVacations.map(v => ({
+        id: v._id,
+        user: v.user?.name,
+        status: v.status,
+        fromDate: v.fromDate,
+        toDate: v.toDate
+      }))
+    });
+    
+    // Transform data for frontend
+    const leaves = teamVacations.map(vacation => ({
+      id: vacation._id,
+      memberName: vacation.user.name,
+      memberEmail: vacation.user.email,
+      memberId: vacation.user._id,
+      vacationName: vacation.name,
+      destination: vacation.destination,
+      fromDate: vacation.fromDate,
+      toDate: vacation.toDate,
+      days: vacation.days,
+      leaveType: vacation.leaveType,
+      // Determine status: current, upcoming, or past
+      status: (() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startDate = new Date(vacation.fromDate);
+        const endDate = new Date(vacation.toDate);
+        
+        if (today >= startDate && today <= endDate) {
+          return 'current';
+        } else if (startDate > today) {
+          return 'upcoming';
+        } else {
+          return 'past';
+        }
+      })()
+    }));
+    
+    // Calculate team statistics
+    const currentLeaves = leaves.filter(l => l.status === 'current');
+    const upcomingLeaves = leaves.filter(l => l.status === 'upcoming');
+    const onLeaveCount = currentLeaves.length;
+    const availabilityPercent = team.members.length > 0 
+      ? Math.round(((team.members.length - onLeaveCount) / team.members.length) * 100)
+      : 100;
+    
+    res.json({
+      teamId: team._id,
+      teamName: team.name,
+      leaves: leaves,
+      statistics: {
+        totalMembers: team.members.length,
+        currentlyOnLeave: onLeaveCount,
+        availabilityPercent: availabilityPercent,
+        upcomingLeaves: upcomingLeaves.length,
+        totalLeaves: leaves.length
+      }
+    });
+  } catch (err) {
+    console.error('Get team leaves error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add member to team
+app.post('/api/teams/:teamId/members', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { userEmail, position } = req.body;
+    
+    console.log('Add team member request:', { userEmail, position });
+    
+    if (!userEmail) {
+      return res.status(400).json({ error: 'User email is required' });
+    }
+    
+    // Verify team exists and user is the manager (or admin)
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    // Check if user is the manager of this team or an admin
+    if (team.managerId.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied - not your team' });
+    }
+    
+    // Find user by email or create if doesn't exist
+    let userToAdd = await User.findOne({ email: userEmail.toLowerCase() });
+    
+    let tempPassword = null;
+    let isNewUser = false;
+    
+    if (!userToAdd) {
+      // Create new user if doesn't exist
+      isNewUser = true;
+      const name = userEmail.split('@')[0]; // Use email prefix as name
+      tempPassword = Math.random().toString(36).slice(-8); // Generate temp password
+      
+      userToAdd = new User({
+        name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
+        email: userEmail.toLowerCase(),
+        password: await bcrypt.hash(tempPassword, 10), // Hash the temp password
+        role: 'employee', // All new team members start as employees
+        position: position || 'Employee',
+        teamId: team._id,
+        managerId: team.managerId,
+        needsPasswordReset: true, // Flag to indicate they should change password
+        tempPassword: tempPassword, // Store temp password (unhashed) temporarily
+        tempPasswordCreatedBy: req.user.userId, // Who created this temp password
+        tempPasswordCreatedAt: new Date() // When it was created
+      });
+      
+      await userToAdd.save();
+      
+      // Log the creation for admin tracking
+      console.log(`New user created for team: ${userEmail} with temp password: ${tempPassword}`);
+    }
+    
+    // Check if user is already a member
+    if (team.members.includes(userToAdd._id)) {
+      return res.status(400).json({ error: 'User is already a team member' });
+    }
+    
+    // Add user to team
+    team.members.push(userToAdd._id);
+    await team.save();
+    
+    // Update user's teamId and managerId (if not already set during creation)
+    if (!userToAdd.teamId) {
+      userToAdd.teamId = team._id;
+    }
+    if (!userToAdd.managerId) {
+      userToAdd.managerId = team.managerId;
+    }
+    // Role is automatically set to 'employee' for new team members
+    // Role changes are handled through the admin panel
+    if (position) {
+      userToAdd.position = position; // Update position if provided
+    }
+    await userToAdd.save();
+    
+    res.json({
+      success: true,
+      message: isNewUser ? 'New user created and added to team successfully' : 'Member added successfully',
+      member: {
+        id: userToAdd._id,
+        name: userToAdd.name,
+        email: userToAdd.email,
+        role: userToAdd.role,
+        position: userToAdd.position
+      },
+      wasNewUser: isNewUser,
+      tempPassword: isNewUser ? tempPassword : null // Only include temp password for new users
+    });
+  } catch (err) {
+    console.error('Add team member error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove member from team
+app.delete('/api/teams/:teamId/members/:userId', authenticateToken, requireManager, async (req, res) => {
+  try {
+    const { teamId, userId } = req.params;
+    
+    // Verify team exists and user is the manager (or admin)
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    // Check if user is the manager of this team or an admin
+    if (team.managerId.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied - not your team' });
+    }
+    
+    // Check if user is a member
+    if (!team.members.includes(userId)) {
+      return res.status(400).json({ error: 'User is not a team member' });
+    }
+    
+    // Remove user from team
+    team.members = team.members.filter(memberId => memberId.toString() !== userId);
+    await team.save();
+    
+    // Update user's teamId and managerId to null
+    await User.findByIdAndUpdate(userId, {
+      teamId: null,
+      managerId: null
+    });
+    
+    res.json({
+      success: true,
+      message: 'Member removed successfully'
+    });
+  } catch (err) {
+    console.error('Remove team member error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -511,7 +1328,7 @@ app.post('/auth/register', async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1h' }
     );
     
     res.status(201).json({
@@ -560,7 +1377,7 @@ app.post('/auth/login', async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1h' }
     );
     
     res.json({
@@ -730,16 +1547,25 @@ app.post('/api/weather-forecast', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Destination, start date, and end date are required' });
     }
     
-    // Check if we have OpenWeather API key
-    if (!process.env.OPENWEATHER_API_KEY) {
-      return res.status(503).json({ 
-        error: 'Weather service not configured',
-        message: 'OpenWeather API key not found'
-      });
-    }
+    // Weather service now uses Open-Meteo (free, no API key required)
+    // OpenWeatherMap is available as fallback if API key is provided
     
     // Get weather forecast with AI analysis
-    const weatherForecast = await weatherAnalyzer.getWeatherForecast(destination, startDate, endDate);
+    let weatherForecast;
+    
+    try {
+      // Try OpenWeatherMap first
+      weatherForecast = await weatherAnalyzer.getWeatherForecast(destination, startDate, endDate);
+    } catch (error) {
+      console.log('OpenWeatherMap failed, trying ChatGPT fallback...');
+      
+      // Fallback to ChatGPT if OpenWeatherMap fails
+      weatherForecast = await weatherAnalyzer.getChatGPTWeatherForecast(destination, startDate, endDate);
+      
+      if (!weatherForecast) {
+        throw new Error('Both OpenWeatherMap and ChatGPT weather services unavailable');
+      }
+    }
     
     res.json({
       success: true,
@@ -806,7 +1632,7 @@ app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
     console.log(`🐍 Executing Python script (cache miss): ${command}`);
     
     // Execute the Python script
-    exec(command, { timeout: 10000 }, async (error, stdout, stderr) => {
+    exec(command, { timeout: 30000 }, async (error, stdout, stderr) => {
       if (error) {
         console.error('Python script error:', error);
         return res.status(500).json({ 
@@ -856,6 +1682,54 @@ app.post('/api/vacation-insights', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Vacation insights endpoint error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get role change audit logs (Admin only)
+app.get('/api/admin/role-change-logs', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, userId } = req.query;
+    const skip = (page - 1) * limit;
+    
+    let query = {};
+    if (userId) {
+      query.userId = userId;
+    }
+    
+    const logs = await RoleChangeLog.find(query)
+      .populate('userId', 'name email')
+      .populate('changedBy', 'name email')
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await RoleChangeLog.countDocuments(query);
+    
+    res.json({
+      logs: logs.map(log => ({
+        _id: log._id,
+        userId: log.userId,
+        userEmail: log.userEmail,
+        userName: log.userName,
+        oldRole: log.oldRole,
+        newRole: log.newRole,
+        changedBy: log.changedBy,
+        changedByEmail: log.changedByEmail,
+        reason: log.reason,
+        timestamp: log.timestamp,
+        ipAddress: log.ipAddress
+      })),
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalLogs: total,
+        hasNext: skip + logs.length < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Get role change logs error:', error);
+    res.status(500).json({ error: 'Failed to fetch role change logs' });
   }
 });
 
