@@ -37,6 +37,6 @@
     }
   ],
   "env": {
-    "REACT_APP_API_URL": "https://your-backend-url.vercel.app"
+    "REACT_APP_API_URL": "https://leave-tracking-backend.onrender.com"
   }
 }
