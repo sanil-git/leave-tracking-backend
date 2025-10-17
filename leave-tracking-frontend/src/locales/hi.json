@@ -1,0 +1,60 @@
+{
+  "dashboard": {
+    "title": "PlanWise डैशबोर्ड",
+    "leaveBalances": "छुट्टी शेष",
+    "earnedLeave": "अर्जित छुट्टी",
+    "sickLeave": "बीमारी की छुट्टी",
+    "casualLeave": "आकस्मिक छुट्टी",
+    "edit": "संपादित करें",
+    "save": "सहेजें",
+    "saving": "सहेजा जा रहा है…"
+  },
+  "calendar": {
+    "title": "कैलेंडर दृश्य",
+    "description": "छुट्टियों और छुट्टी की योजनाओं को ट्रैक करें"
+  },
+  "vacation": {
+    "planYourVacation": "अपनी छुट्टी की योजना बनाएं",
+    "planDescription": "छुट्टी के अनुरोध जमा करें और अपने समय की निगरानी करें",
+    "vacationName": "छुट्टी का नाम",
+    "destination": "गंतव्य",
+    "selectDestination": "गंतव्य चुनें",
+    "leaveType": "छुट्टी का प्रकार",
+    "startDate": "आरंभ तिथि",
+    "endDate": "समाप्ति तिथि",
+    "submit": "जमा करें",
+    "earnedLeave": "अर्जित छुट्टी",
+    "sickLeave": "बीमारी की छुट्टी",
+    "casualLeave": "आकस्मिक छुट्टी"
+  },
+  "opportunities": {
+    "longWeekend": "लंबी छुट्टी के अवसर",
+    "noOpportunities": "कोई लंबे सप्ताहांत के अवसर नहीं मिले।",
+    "planned": "नियोजित छुट्टियां",
+    "noVacations": "अभी तक कोई छुट्टी नियोजित नहीं है।",
+    "days": "दिन"
+  },
+  "insights": {
+    "smartInsights": "स्मार्ट अंतर्दृष्टि",
+    "historicalData": "ऐतिहासिक डेटा",
+    "longWeekendDetected": "लंबी छुट्टी का पता चला!",
+    "checkUpcoming": "आगामी लंबे सप्ताहांत की जांच करें",
+    "optimalBooking": "इष्टतम बुकिंग",
+    "optimalRecommendations": "इष्टतम बुकिंग सिफारिशें",
+    "teamSync": "टीम समन्वय",
+    "teamCoordination": "टीम समन्वय अंतर्दृष्टि"
+  },
+  "auth": {
+    "logout": "लॉग आउट",
+    "welcomeBack": "स्वागत है"
+  },
+  "language": {
+    "english": "EN",
+    "hindi": "हिं"
+  },
+  "holiday": {
+    "management": "छुट्टी प्रबंधन",
+    "manageDescription": "सरकारी छुट्टियों और उत्सवों का प्रबंधन करें"
+  }
+}
+

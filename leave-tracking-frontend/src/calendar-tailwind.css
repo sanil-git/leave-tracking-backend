@@ -1,0 +1,303 @@
+/* Clean, Simple Calendar Styling */
+.rbc-calendar {
+  font-family: inherit;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.rbc-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 8px;
+  font-weight: 500;
+  color: #374151;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+}
+
+.rbc-month-view {
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.rbc-date-cell {
+  padding: 8px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s ease;
+  position: relative;
+  min-height: 40px;
+}
+
+.rbc-date-cell:hover {
+  background-color: #f3f4f6;
+}
+
+.rbc-off-range-bg {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.rbc-off-range {
+  color: #9ca3af;
+  opacity: 0.6;
+}
+
+/* Simple today highlighting */
+.rbc-today {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* Weekend shading for better distinction - Higher priority */
+.rbc-date-cell[data-day="0"], /* Sunday */
+.rbc-date-cell[data-day="6"] { /* Saturday */
+  background: #f9fafb !important;
+}
+
+.rbc-date-cell[data-day="0"] .rbc-day-number,
+.rbc-date-cell[data-day="6"] .rbc-day-number {
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
+
+/* Event date styling - Holiday dates */
+.rbc-date-cell.bg-blue-50 {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+  border-left: 3px solid #3b82f6 !important;
+}
+
+.rbc-date-cell.bg-blue-50 .rbc-day-number {
+  color: #1e40af;
+  font-weight: 600;
+}
+
+/* Event date styling - Vacation dates */
+.rbc-date-cell.bg-green-50 {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
+  border-left: 3px solid #10b981 !important;
+}
+
+.rbc-date-cell.bg-green-50 .rbc-day-number {
+  color: #065f46;
+  font-weight: 600;
+}
+
+/* Event date styling - Both holiday and vacation */
+.rbc-date-cell.bg-gradient-to-br {
+  background: linear-gradient(135deg, #dbeafe 0%, #dcfce7 100%) !important;
+  border-left: 3px solid #8b5cf6 !important;
+}
+
+.rbc-date-cell.bg-gradient-to-br .rbc-day-number {
+  color: #4c1d95;
+  font-weight: 700;
+}
+
+/* Enhanced event styling with beautiful gradients */
+.rbc-event {
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
+}
+
+.rbc-event:hover {
+  transform: scale(1.05) translateY(-1px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.rbc-event-content {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-weight: 600;
+}
+
+/* Holiday events - Blue gradient */
+.rbc-event[style*="background-color: rgb(59, 130, 246)"] {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Vacation events - Green gradient */
+.rbc-event[style*="background-color: rgb(16, 185, 129)"] {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Tooltip for truncated events */
+.rbc-event[title] {
+  cursor: help;
+}
+
+/* Show more button styling */
+.rbc-show-more {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  color: #6b7280;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.rbc-show-more:hover {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  transform: scale(1.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.rbc-toolbar {
+  margin-bottom: 16px;
+}
+
+.rbc-toolbar button {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rbc-toolbar button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.rbc-toolbar-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.rbc-month-row {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rbc-day-bg {
+  border-right: 1px solid #e2e8f0;
+}
+
+.rbc-day-number {
+  padding: 8px;
+  font-weight: 600;
+  color: #374151;
+  position: relative;
+  z-index: 2;
+  transition: all 0.2s ease;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100%;
+  height: 100%;
+}
+
+.rbc-day-number:hover {
+  color: #1f2937;
+}
+
+/* Simple today number styling */
+.rbc-today .rbc-day-number {
+  background: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px auto;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.rbc-event-label {
+  font-weight: 700;
+}
+
+/* Popup styling for better event display */
+.rbc-overlay {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 12px;
+  max-width: 250px;
+  z-index: 1000;
+}
+
+.rbc-overlay-header {
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.rbc-overlay-content {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rbc-event {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  
+  .rbc-event-content {
+    font-size: 10px;
+  }
+  
+  .rbc-day-number {
+    padding: 6px;
+    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .rbc-today .rbc-day-number {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .rbc-header {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: leave-tracking-backend
+    env: node
+    plan: free
+    buildCommand: |
+      npm install
+      # Python 3 is pre-installed on Render, no additional setup needed
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false  # Will be set manually
+      - key: JWT_SECRET
+        sync: false  # Will be set manually
+    healthCheckPath: /health
+    autoDeploy: true

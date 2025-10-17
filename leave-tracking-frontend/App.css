@@ -1,0 +1,139 @@
+/* Calendar Styling */
+.rbc-calendar {
+  font-family: 'Inter', sans-serif;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rbc-header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 12px 8px;
+}
+
+.rbc-date-cell {
+  font-weight: 500;
+  color: #1f2937;
+  padding: 8px;
+}
+
+.rbc-off-range-bg {
+  background-color: #f3f4f6;
+}
+
+.rbc-off-range {
+  color: #9ca3af;
+}
+
+.rbc-today {
+  background-color: #dbeafe;
+}
+
+.rbc-event {
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border: none;
+}
+
+.rbc-month-row {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rbc-day-bg {
+  border-right: 1px solid #e5e7eb;
+}
+
+/* Mobile Calendar Styling */
+.mobile-calendar {
+  font-size: 12px !important;
+}
+
+.mobile-calendar .rbc-toolbar {
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+.mobile-calendar .rbc-header {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 4px 2px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.mobile-calendar .rbc-month-view {
+  height: calc(100% - 40px) !important;
+}
+
+.mobile-calendar .rbc-month-row {
+  min-height: 24px !important;
+}
+
+.mobile-calendar .rbc-date-cell {
+  padding: 2px 4px !important;
+  font-size: 11px !important;
+}
+
+.mobile-calendar .rbc-event {
+  font-size: 10px !important;
+  padding: 1px 3px !important;
+  margin: 1px 0 !important;
+  border-radius: 3px !important;
+  min-height: 16px !important;
+  line-height: 1.2 !important;
+}
+
+.mobile-calendar .rbc-event-content {
+  font-size: 10px !important;
+  padding: 0 !important;
+}
+
+.mobile-calendar .rbc-off-range-bg {
+  background-color: transparent !important;
+}
+
+.mobile-calendar .rbc-off-range {
+  color: #9ca3af !important;
+  font-size: 10px !important;
+}
+
+/* Ensure calendar doesn't overflow on mobile */
+@media (max-width: 768px) {
+  .mobile-calendar {
+    overflow: hidden !important;
+  }
+  
+  .mobile-calendar .rbc-month-view {
+    overflow: hidden !important;
+  }
+  
+  .mobile-calendar .rbc-month-row {
+    overflow: hidden !important;
+  }
+  
+  .mobile-calendar .rbc-date-cell {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Backend status indicator animations */
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+  }
+  50% { 
+    opacity: 0.5; 
+  }
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}

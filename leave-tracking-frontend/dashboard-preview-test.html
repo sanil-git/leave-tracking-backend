@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Preview Component Update Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">Dashboard Preview Component Update Test</h1>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">✅ Updates Applied:</h2>
+            <ul class="space-y-2 text-gray-700">
+                <li>✅ Replaced placeholder boxes with composed preview</li>
+                <li>✅ Left: Small calendar with highlighted dates (visual-only)</li>
+                <li>✅ Right: Leave balances card and Long Weekends card</li>
+                <li>✅ Wrapped in centered white card: rounded-2xl, p-8, shadow-xl, max-w-4xl</li>
+                <li>✅ Added subtle backdrop blur and border (bg-white/80, backdrop-blur-sm, ring-1 ring-gray-100)</li>
+                <li>✅ Made preview purely static but structured for future data props</li>
+                <li>✅ Added calendar navigation buttons and legend</li>
+                <li>✅ Enhanced card styling with gradients and borders</li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">🎨 Styling Details:</h2>
+            <ul class="space-y-2 text-gray-700">
+                <li><strong>Main Card:</strong> bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-xl</li>
+                <li><strong>Border:</strong> ring-1 ring-gray-100 for subtle definition</li>
+                <li><strong>Calendar:</strong> White card with border, navigation buttons, legend</li>
+                <li><strong>Leave Balances:</strong> Purple gradient card with icon and structured data</li>
+                <li><strong>Long Weekends:</strong> Green gradient card with individual weekend items</li>
+                <li><strong>Highlighted Dates:</strong> Different colors with ring borders for emphasis</li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">📊 Data Structure:</h2>
+            <ul class="space-y-2 text-gray-700">
+                <li><strong>leaveBalances:</strong> Object with EL, SL, CL properties</li>
+                <li><strong>longWeekends:</strong> Array of objects with date, days, type properties</li>
+                <li><strong>currentMonth:</strong> String for calendar display</li>
+                <li><strong>highlightedDates:</strong> Array of dates to highlight in calendar</li>
+                <li><strong>Static Data:</strong> No backend calls, purely visual preview</li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">🎯 Visual Features:</h2>
+            <ul class="space-y-2 text-gray-700">
+                <li>✅ Calendar with navigation arrows and month display</li>
+                <li>✅ Highlighted dates with different colors and ring borders</li>
+                <li>✅ Calendar legend explaining color coding</li>
+                <li>✅ Leave balances with icons and structured layout</li>
+                <li>✅ Long weekends with individual cards and status indicators</li>
+                <li>✅ Consistent spacing and typography throughout</li>
+                <li>✅ Hover effects on interactive elements</li>
+            </ul>
+        </div>
+
+        <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-green-800 mb-2">🚀 Status: READY FOR TESTING</h2>
+            <p class="text-green-700">
+                The dashboard preview component has been successfully updated with a composed layout, enhanced styling, and structured data props. 
+                Test the app at <strong>http://localhost:3006</strong> to see the new dashboard preview in action!
+            </p>
+        </div>
+    </div>
+</body>
+</html>

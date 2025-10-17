@@ -1,0 +1,60 @@
+{
+  "dashboard": {
+    "title": "PlanWise Dashboard",
+    "leaveBalances": "Leave Balances",
+    "earnedLeave": "Earned Leave",
+    "sickLeave": "Sick Leave",
+    "casualLeave": "Casual Leave",
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving…"
+  },
+  "calendar": {
+    "title": "Calendar View",
+    "description": "Track holidays and vacation plans"
+  },
+  "vacation": {
+    "planYourVacation": "Plan Your Vacation",
+    "planDescription": "Submit vacation requests and track your time off",
+    "vacationName": "Vacation Name",
+    "destination": "Destination",
+    "selectDestination": "Select destination",
+    "leaveType": "Leave Type",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "submit": "Submit",
+    "earnedLeave": "Earned Leave",
+    "sickLeave": "Sick Leave",
+    "casualLeave": "Casual Leave"
+  },
+  "opportunities": {
+    "longWeekend": "Long Weekend Opportunities",
+    "noOpportunities": "No long weekend opportunities found.",
+    "planned": "Planned Vacations",
+    "noVacations": "No vacations planned yet.",
+    "days": "days"
+  },
+  "insights": {
+    "smartInsights": "Smart Insights",
+    "historicalData": "Historical Data",
+    "longWeekendDetected": "Long Weekend Detected!",
+    "checkUpcoming": "Check for upcoming long weekends",
+    "optimalBooking": "Optimal Booking",
+    "optimalRecommendations": "Optimal booking recommendations",
+    "teamSync": "Team Sync",
+    "teamCoordination": "Team coordination insights"
+  },
+  "auth": {
+    "logout": "Logout",
+    "welcomeBack": "Welcome back"
+  },
+  "language": {
+    "english": "EN",
+    "hindi": "HI"
+  },
+  "holiday": {
+    "management": "Holiday Management",
+    "manageDescription": "Manage official holidays and observances"
+  }
+}
+
