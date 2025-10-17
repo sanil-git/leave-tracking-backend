@@ -26,3 +26,8 @@ A comprehensive leave management system with team management, holiday tracking, 
 - Frontend: Deploy to Vercel
 - Backend: Deploy to Render
 - Database: MongoDB Atlas
+
+## Git Repository
+- Repository: https://github.com/sanil-git/leave-tracking-backend.git
+- Owner: sanil-git
+- Last updated: October 2025
