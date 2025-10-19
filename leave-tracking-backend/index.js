@@ -1206,10 +1206,35 @@ app.get('/leave-balances', authenticateToken, async (req, res) => {
     // First try to find user-specific leave balances
     let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
     
-    // If no user-specific balances exist, check for global balances (without user field)
+    // If no user-specific balances exist, create default zero balances for new users
     if (leaveBalances.length === 0) {
-      const globalBalances = await LeaveBalance.find({ user: { $exists: false } });
-      leaveBalances = globalBalances;
+      const leaveTypes = [
+        { leaveType: 'EL', description: 'Earned Leave' },
+        { leaveType: 'SL', description: 'Sick Leave' },
+        { leaveType: 'CL', description: 'Casual Leave' }
+      ];
+      
+      // Create each balance individually using findOneAndUpdate with upsert
+      leaveBalances = [];
+      for (const type of leaveTypes) {
+        try {
+          const balance = await LeaveBalance.findOneAndUpdate(
+            { user: req.user.userId, leaveType: type.leaveType },
+            { 
+              $setOnInsert: { 
+                balance: 0, 
+                description: type.description,
+                user: req.user.userId,
+                leaveType: type.leaveType
+              }
+            },
+            { upsert: true, new: true }
+          );
+          leaveBalances.push(balance);
+        } catch (error) {
+          console.error(`Error creating ${type.leaveType} balance:`, error.message);
+        }
+      }
     }
     
     res.json(leaveBalances);
