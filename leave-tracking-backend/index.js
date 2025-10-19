@@ -1205,9 +1205,11 @@ app.get('/leave-balances', authenticateToken, async (req, res) => {
   try {
     // First try to find user-specific leave balances
     let leaveBalances = await LeaveBalance.find({ user: req.user.userId });
+    console.log(`📊 Fetching balances for user ${req.user.userId}, found: ${leaveBalances.length}`);
     
     // If no user-specific balances exist, create default zero balances for new users
     if (leaveBalances.length === 0) {
+      console.log(`🆕 No balances found for new user ${req.user.userId}, creating zero balances...`);
       const leaveTypes = [
         { leaveType: 'EL', description: 'Earned Leave' },
         { leaveType: 'SL', description: 'Sick Leave' },
@@ -1218,6 +1220,7 @@ app.get('/leave-balances', authenticateToken, async (req, res) => {
       leaveBalances = [];
       for (const type of leaveTypes) {
         try {
+          console.log(`  Creating ${type.leaveType} balance...`);
           const balance = await LeaveBalance.findOneAndUpdate(
             { user: req.user.userId, leaveType: type.leaveType },
             { 
@@ -1230,16 +1233,19 @@ app.get('/leave-balances', authenticateToken, async (req, res) => {
             },
             { upsert: true, new: true }
           );
+          console.log(`  ✅ ${type.leaveType} created/found:`, balance);
           leaveBalances.push(balance);
         } catch (error) {
-          console.error(`Error creating ${type.leaveType} balance:`, error.message);
+          console.error(`❌ Error creating ${type.leaveType} balance:`, error.message);
+          console.error(`   Full error:`, error);
         }
       }
+      console.log(`✅ Total balances after creation: ${leaveBalances.length}`);
     }
     
     res.json(leaveBalances);
   } catch (err) {
-    console.error('Leave balances error:', err);
+    console.error('❌ Leave balances error:', err);
     res.status(500).json({ error: err.message });
   }
 });
